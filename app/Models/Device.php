@@ -141,4 +141,45 @@ class Device extends Model
             'data' => $data
         ];
     }
+
+    public static function requestOtp($device)
+    {
+        // Get device token from database
+        $deviceModel = Device::where('device', $device)->first();
+
+        if (!$deviceModel || !$deviceModel->token) {
+            return [
+                'status' => false,
+                'message' => 'Device not found or token is missing',
+                'error' => null
+            ];
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => $deviceModel->token
+        ])->post('https://api.fonnte.com/delete-device', [
+            'device' => $device,
+            'otp' => ''
+        ]);
+
+        if (!$response->successful()) {
+            return [
+                'status' => false,
+                'message' => 'Failed to request OTP',
+                'error' => $response->json()
+            ];
+        }
+
+        $data = $response->json();
+
+        dd($data);
+
+        return [
+            'status' => true,
+            'message' => 'OTP has been sent',
+            'data' => $data,
+            'needs_otp' => true
+        ];
+    }
 }
+

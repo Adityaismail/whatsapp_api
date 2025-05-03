@@ -14,6 +14,11 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
+use Filament\Support\Exceptions\Halt;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Actions\Action as FormAction;
+use Filament\Forms\Components\Actions\ActionGroup;
 
 class DeviceResource extends Resource
 {
@@ -39,8 +44,8 @@ class DeviceResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('device')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('expired')
-                    ->searchable(),
+                // Tables\Columns\TextColumn::make('expired')
+                //     ->searchable(),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('package')
@@ -49,8 +54,8 @@ class DeviceResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('status')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('token')
-                    ->searchable(),
+                // Tables\Columns\TextColumn::make('token')
+                //     ->searchable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -65,6 +70,18 @@ class DeviceResource extends Resource
             ])
             ->actions([
                 // Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('requestOtp')
+                    ->icon('heroicon-o-envelope')
+                    ->label('OTP')
+                    ->action(function ($record) {
+                        $result = Device::requestOtp($record->device);
+                        // if ($result['status']) {
+                        //     Notification::make()
+                        //         ->title('OTP has been sent')
+                        //         ->success()
+                        //         ->send();
+                        // }
+                    }),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([

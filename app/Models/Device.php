@@ -144,21 +144,18 @@ class Device extends Model
 
     public static function requestOtp($device)
     {
-        // Get device token from database
         $deviceModel = Device::where('device', $device)->first();
 
         if (!$deviceModel || !$deviceModel->token) {
             return [
                 'status' => false,
-                'message' => 'Device not found or token is missing',
-                'error' => null
+                'message' => 'Device not found or token is missing'
             ];
         }
 
         $response = Http::withHeaders([
             'Authorization' => $deviceModel->token
         ])->post('https://api.fonnte.com/delete-device', [
-            'device' => $device,
             'otp' => ''
         ]);
 
@@ -172,14 +169,97 @@ class Device extends Model
 
         $data = $response->json();
 
-        dd($data);
+        // Check if this is a cooldown response
+        if (isset($data['reason']) && str_contains(strtolower($data['reason']), 'please wait')) {
+            $seconds = (int) filter_var($data['reason'], FILTER_SANITIZE_NUMBER_INT);
+            $minutes = floor($seconds / 60);
+            $remainingSeconds = $seconds % 60;
+
+            $timeMessage = '';
+            if ($minutes > 0) {
+                $timeMessage .= "{$minutes} minute" . ($minutes > 1 ? 's' : '');
+            }
+            if ($remainingSeconds > 0) {
+                if ($minutes > 0) {
+                    $timeMessage .= ' and ';
+                }
+                $timeMessage .= "{$remainingSeconds} second" . ($remainingSeconds > 1 ? 's' : '');
+            }
+
+            return [
+                'status' => false,
+                'message' => "Please wait {$timeMessage} before requesting new OTP",
+                'error' => $data,
+                'cooldown' => true,
+                'cooldown_seconds' => $seconds,
+                'cooldown_minutes' => $minutes,
+                'cooldown_remaining_seconds' => $remainingSeconds
+            ];
+        }
+
+        if (isset($data['status']) && $data['status'] === true) {
+            return [
+                'status' => true,
+                'message' => 'OTP has been sent',
+                'data' => $data
+            ];
+        }
 
         return [
-            'status' => true,
-            'message' => 'OTP has been sent',
-            'data' => $data,
-            'needs_otp' => true
+            'status' => false,
+            'message' => $data['reason'] ?? 'Failed to request OTP',
+            'error' => $data
         ];
+    }
+
+    public static function deleteDevice($device, $data)
+    {
+        $deviceModel = Device::where('device', $device)->first();
+
+        if (!$deviceModel) {
+            return [
+                'status' => false,
+                'message' => 'Device not found'
+            ];
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => $deviceModel->token // Sesuai contoh, tanpa Bearer
+            ])->asForm() // Menggunakan format form-urlencoded
+            ->post('https://api.fonnte.com/delete-device', [
+                'otp' => $data['otp'] // Mengambil nilai OTP dari input form
+            ]);
+
+            $responseData = $response->json();
+
+            // Debugging - bisa dihapus setelah testing
+            \Log::debug('Fonnte API Response:', [
+                'status' => $response->status(),
+                'response' => $responseData
+            ]);
+
+            if ($response->successful() && ($responseData['status'] ?? false)) {
+                return [
+                    'status' => true,
+                    'message' => $responseData['message'] ?? 'Device deleted successfully',
+                    'data' => $responseData
+                ];
+            }
+
+            return [
+                'status' => false,
+                'message' => $responseData['reason'] ?? ($responseData['message'] ?? 'Failed to delete device'),
+                'error' => $responseData
+            ];
+
+        } catch (\Exception $e) {
+            return [
+                'status' => false,
+                'message' => 'API request failed: ' . $e->getMessage(),
+                'error' => $e->getMessage()
+            ];
+        }
     }
 }
 

@@ -19,6 +19,7 @@ use Filament\Support\Exceptions\Halt;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Actions\Action as FormAction;
 use Filament\Forms\Components\Actions\ActionGroup;
+use Illuminate\Support\Facades\Http;
 
 class DeviceResource extends Resource
 {
@@ -44,8 +45,6 @@ class DeviceResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('device')
                     ->searchable(),
-                // Tables\Columns\TextColumn::make('expired')
-                //     ->searchable(),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('package')
@@ -69,20 +68,51 @@ class DeviceResource extends Resource
                 //
             ])
             ->actions([
-                // Tables\Actions\EditAction::make(),
                 Tables\Actions\Action::make('requestOtp')
-                    ->icon('heroicon-o-envelope')
-                    ->label('OTP')
+                    ->color('info')
+                    ->button()
+                    ->label(false)
+                    ->icon('heroicon-o-arrow-left-end-on-rectangle')
                     ->action(function ($record) {
                         $result = Device::requestOtp($record->device);
-                        // if ($result['status']) {
-                        //     Notification::make()
-                        //         ->title('OTP has been sent')
-                        //         ->success()
-                        //         ->send();
-                        // }
+
+                        if ($result['status']) {
+                            Notification::make()
+                                ->title($result['message'])
+                                ->success()
+                                ->send();
+                        } else {
+                            Notification::make()
+                                ->title($result['message'])
+                                ->danger()
+                                ->send();
+                        }
                     }),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\Action::make('deleteDevice')
+                    ->color('danger')
+                    ->icon('heroicon-o-trash')
+                    ->button()
+                    ->label(false)
+                    ->requiresConfirmation()
+                    ->form([
+                        TextInput::make('otp')
+                            ->label('OTP')
+                            ->required()
+                            ->numeric() // Jika OTP hanya angka
+                    ])
+                    ->action(function ($record, $data) {
+                        $result = Device::deleteDevice($record->device, $data);
+
+                        Notification::make()
+                            ->title($result['message'])
+                            ->success($result['status'])
+                            ->danger(!$result['status'])
+                            ->send();
+
+                        if ($result['status']) {
+                            $record->delete(); // Hapus record dari database jika sukses
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

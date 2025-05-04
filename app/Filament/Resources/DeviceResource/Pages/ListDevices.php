@@ -9,10 +9,15 @@ use Filament\Resources\Pages\ListRecords;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Split;
+use Filament\Forms\Components\Textarea;
 
 class ListDevices extends ListRecords
 {
     protected static string $resource = DeviceResource::class;
+
+    protected static ?string $title = 'Device List';
 
     protected function getHeaderActions(): array
     {
@@ -21,23 +26,40 @@ class ListDevices extends ListRecords
                 ->action(function ($data) {
                     Device::addDevice($data['name'], $data['device'], $data['autoread'], $data['personal'], $data['group']);
                     Notification::make()
-                        ->title('Device added successfully')
+                        ->title('Success')
+                        ->body('Perangkat berhasil ditambahkan')
                         ->success()
                         ->send();
                 })
                 ->form([
-                    TextInput::make('name')
-                        ->required()
-                        ->maxLength(255),
-                    TextInput::make('device')
-                        ->required()
-                        ->maxLength(255),
-                    Toggle::make('autoread')
-                        ->required(),
-                    Toggle::make('personal')
-                        ->required(),
-                    Toggle::make('group')
-                        ->required(),
+                    Split::make([
+                        Section::make([
+                            TextInput::make('name')
+                                ->required()
+                                ->label('Nama')
+                                ->placeholder('Nama Perangkat')
+                                ->maxLength(255),
+                            TextInput::make('device')
+                                ->required()
+                                ->label('Whatsapp')
+                                ->placeholder('+62 ***')
+                                ->maxLength(255),
+                        ]),
+                        Section::make([
+                            Toggle::make('autoread')
+                                ->required()
+                                ->label('Auto Read')
+                                ->default(false),
+                            Toggle::make('personal')
+                                ->required()
+                                ->label('Personal')
+                                ->default(false),
+                            Toggle::make('group')
+                                ->required()
+                                ->label('Group')
+                                ->default(false),
+                        ])->grow(true),
+                    ])->from('md'),
                 ])
                 ->slideOver()
                 ->label('Tambah')

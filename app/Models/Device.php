@@ -261,5 +261,124 @@ class Device extends Model
             ];
         }
     }
+
+    public static function getQrCode($device)
+    {
+        $deviceModel = Device::where('device', $device)->first();
+
+        if (!$deviceModel || !$deviceModel->token) {
+            return [
+                'status' => false,
+                'message' => 'Device not found or token is missing'
+            ];
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => $deviceModel->token
+            ])->post('https://api.fonnte.com/qr', [
+                'type' => 'qr',
+                'whatsapp' => $deviceModel->device
+            ]);
+
+            if (!$response->successful()) {
+                return [
+                    'status' => false,
+                    'message' => 'Failed to fetch QR code',
+                    'error' => $response->json()
+                ];
+            }
+
+            $data = $response->json();
+
+            if (!isset($data['status']) || !$data['status']) {
+                return [
+                    'status' => false,
+                    'message' => 'API returned error',
+                    'error' => $data
+                ];
+            }
+
+            // Extract QR code from response
+            $qrCode = $data['url'] ?? null;
+
+            if (!$qrCode) {
+                return [
+                    'status' => false,
+                    'message' => 'QR code not found in response',
+                    'error' => $data
+                ];
+            }
+
+            return [
+                'status' => true,
+                'message' => 'QR code fetched successfully',
+                'qr_url' => $qrCode,
+                'html' => '<img src="data:image/png;base64,' . $qrCode . '">'
+            ];
+
+        } catch (\Exception $e) {
+            return [
+                'status' => false,
+                'message' => 'API request failed: ' . $e->getMessage(),
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    public static function disconnectDevice($device)
+    {
+        $deviceModel = Device::where('device', $device)->first();
+
+        if (!$deviceModel || !$deviceModel->token) {
+            return [
+                'status' => false,
+                'message' => 'Device not found or token is missing'
+            ];
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => $deviceModel->token
+            ])->post('https://api.fonnte.com/disconnect');
+
+            if (!$response->successful()) {
+                return [
+                    'status' => false,
+                    'message' => 'Failed to disconnect device',
+                    'error' => $response->json()
+                ];
+            }
+
+            $data = $response->json();
+
+            if (!isset($data['status']) || !$data['status']) {
+                return [
+                    'status' => false,
+                    'message' => 'API returned error',
+                    'error' => $data
+                ];
+            }
+
+            // Update device status in database
+            $deviceModel->update([
+                'status' => 'disconnected'
+            ]);
+
+            return [
+                'icon' => 'heroicon-o-arrow-left-start-on-rectangle',
+                'status' => true,
+                'message' => 'Device disconnected successfully',
+                'data' => $data
+            ];
+
+        } catch (\Exception $e) {
+            return [
+                'status' => false,
+                'message' => 'API request failed: ' . $e->getMessage(),
+                'error' => $e->getMessage()
+            ];
+        }
+    }
 }
 

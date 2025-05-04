@@ -94,6 +94,10 @@ class DeviceResource extends Resource
                     ->button()
                     ->label(false)
                     ->requiresConfirmation()
+                    ->modalHeading('Delete Device')
+                    ->modalSubheading('Are you sure you want to delete this device?')
+                    ->modalButton('Delete')
+                    ->modalWidth('lg')
                     ->form([
                         TextInput::make('otp')
                             ->label('OTP')

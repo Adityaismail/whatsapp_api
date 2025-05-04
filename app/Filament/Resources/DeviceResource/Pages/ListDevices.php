@@ -9,6 +9,7 @@ use Filament\Resources\Pages\ListRecords;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
+
 class ListDevices extends ListRecords
 {
     protected static string $resource = DeviceResource::class;
@@ -45,10 +46,31 @@ class ListDevices extends ListRecords
 
             Actions\Action::make('Sync')
                 ->action(function () {
-                    Device::syncFromApi();
+                    try {
+                        $result = Device::syncFromApi();
+
+                        // Notifikasi sukses
+                        Notification::make()
+                            ->title('Sinkronisasi Berhasil')
+                            ->body('Data perangkat telah diperbarui')
+                            ->success()
+                            ->send();
+
+                    } catch (\Exception $e) {
+                        // Notifikasi error
+                        Notification::make()
+                            ->title('Sinkronisasi Gagal')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
                 })
                 ->icon('heroicon-o-arrow-path')
-                ->color('info'),
+                ->color('info')
+                ->requiresConfirmation() // opsional: tambahkan konfirmasi
+                ->modalHeading('Sinkronisasi Perangkat')
+                ->modalDescription('Apakah Anda yakin ingin melakukan sinkronisasi data perangkat?')
+                ->modalButton('Ya, Sinkronisasi')
         ];
     }
 }
